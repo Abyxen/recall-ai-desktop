@@ -65,8 +65,9 @@ class Retriever:
                 continue
             similarity = float(np.dot(query, vector))
             overlap = len(qwords & set(tokens(row['text'])))
-            if similarity > 0.12 and (self.fingerprint != 'lexical-hash-v1' or overlap):
-                row['score'] = similarity
+            lexical = self.fingerprint == 'lexical-hash-v1'
+            if similarity > (0.04 if lexical else 0.25) and (not lexical or overlap):
+                row['score'] = similarity + (0.2 * overlap / max(1, len(qwords)) if lexical else 0)
                 row.pop('vector')
                 result.append(row)
         result.sort(key=lambda row: row['score'], reverse=True)
