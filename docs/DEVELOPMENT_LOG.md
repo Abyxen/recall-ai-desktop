@@ -14,3 +14,5 @@ Validation: 38 tests passed, including PDF/DOCX/PPTX parsing and offscreen deskt
 
 Known limits: generated content still requires human accuracy checks; calculation scoring verifies numeric matching only; free-text grading is provisional; OCR requires external optional programs; semantic index uses exact linear cosine search, suited to personal libraries. Packaging and final documentation follow.
 
+
+Publication note: milestone 2 commit 7f09b6e was initially rejected because GitHub OAuth credentials lack workflow scope. Moved the CI definition to docs/ci/windows-tests.yml as an opt-in template, preserving all application code and history.
