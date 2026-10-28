@@ -1,7 +1,13 @@
-from PySide6.QtCore import QObject, QRunnable, Qt, Signal
+from PySide6.QtCore import QByteArray, QObject, QRunnable, Qt, Signal
 from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QDialog, QDialogButtonBox,
     QFormLayout, QFrame, QHeaderView, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
-    QPushButton, QSpinBox, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+    QPushButton, QSpinBox, QTableWidget, QTableWidgetItem, QTextBrowser, QVBoxLayout, QWidget)
+
+
+class SafeTextBrowser(QTextBrowser):
+    def loadResource(self, resource_type, url):
+        # Model-generated Markdown must never fetch remote or local image resources.
+        return QByteArray()
 
 
 def label(text, name=None, wrap=False):

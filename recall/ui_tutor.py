@@ -9,7 +9,7 @@ from .documents import ocr_available
 from .provider import Provider
 from .retrieval import source_label
 from .tutor import Tutor
-from .widgets import Scope, button, label, row
+from .widgets import SafeTextBrowser, Scope, button, label, row
 
 
 class TutorSettingsPages:
@@ -31,7 +31,7 @@ class TutorSettingsPages:
         self.tutor_status = label('Model connection not tested. Source retrieval also works without a model.', 'subtitle', True)
         layout.addWidget(self.tutor_status)
         split = QSplitter(Qt.Orientation.Horizontal)
-        self.tutor_answer = QTextBrowser()
+        self.tutor_answer = SafeTextBrowser()
         self.tutor_answer.setOpenLinks(False)
         self.tutor_answer.setOpenExternalLinks(False)
         self.tutor_answer.setPlainText('What would you like to understand?\n\nImport a document, choose a scope, and ask a specific question.')
@@ -89,7 +89,7 @@ class TutorSettingsPages:
         self.endpoint = QLineEdit(self.db.setting('endpoint', 'http://localhost:11434'))
         self.model = QComboBox()
         self.model.setEditable(True)
-        self.model.addItem(self.db.setting('model', 'axom:latest'))
+        self.model.addItem(self.db.setting('model', ''))
         self.embedding_model = QLineEdit(self.db.setting('embedding_model', ''))
         self.embedding_model.setPlaceholderText('Blank = offline lexical vectors; semantic model is optional.')
         self.timeout = QSpinBox()

@@ -148,7 +148,7 @@ class MainWindow(StudyPages, TutorSettingsPages, QMainWindow):
 
     def build_dashboard(self):
         layout = self.page('Make room for understanding.', 'Turn your course material into small, focused study sessions.')
-        layout.addWidget(row(button('Import documents', self.import_files, True), button('Ask your AI tutor', lambda: self.navigate(2)), button('Review due cards', lambda: self.navigate(3))))
+        layout.addWidget(row(button('Import documents', self.import_files, True), button('Ask your AI tutor', lambda: self.navigate(2)), button('Review due cards', self.open_due_cards)))
         stats = row()
         self.stat_labels = {}
         for name, key in [('Documents', 'documents'), ('Notebooks', 'notebooks'), ('Flashcards', 'cards'), ('Due for review', 'due')]:
@@ -176,7 +176,8 @@ class MainWindow(StudyPages, TutorSettingsPages, QMainWindow):
         data = dashboard(self.db)
         for key, item in self.stat_labels.items():
             item.setText(str(data[key]))
-        self.next_action.setText('Add your first document to start your study library.' if not data['documents'] else f"{data['due']} cards are ready for review. A short session now helps you remember more later." if data['due'] else 'Choose a document, ask a question, or generate your next study deck.')
+        due_text = '1 card is ready' if data['due'] == 1 else f"{data['due']} cards are ready"
+        self.next_action.setText('Add your first document to start your study library.' if not data['documents'] else f"{due_text} for review. A short session now helps you remember more later." if data['due'] else 'Choose a document, ask a question, or generate your next study deck.')
         fill_table(self.recent_docs, data['recent_documents'], ['name', 'subject', 'notebook', 'pages'])
         fill_table(self.recent_quizzes, data['recent_attempts'], ['title', lambda r: f"{r['score']:.1f} / {r['total']}", 'created'])
 
@@ -190,7 +191,10 @@ class MainWindow(StudyPages, TutorSettingsPages, QMainWindow):
         self.library_table = table(['Document', 'Subject', 'Notebook', 'Units', 'Status'])
         self.library_table.itemSelectionChanged.connect(self.show_document)
         layout.addWidget(self.library_table, 3)
-        layout.addWidget(row(button('Organize', self.organize_document), button('Re-index', self.reindex_document), button('Remove from library', self.remove_document)))
+        self.library_actions = [button('Organize', self.organize_document), button('Re-index', self.reindex_document), button('Remove from library', self.remove_document)]
+        for control in self.library_actions:
+            control.setEnabled(False)
+        layout.addWidget(row(*self.library_actions))
         self.document_preview = QPlainTextEdit()
         self.document_preview.setReadOnly(True)
         self.document_preview.setPlaceholderText('Select a document to preview indexed text and source positions.')
@@ -208,6 +212,8 @@ class MainWindow(StudyPages, TutorSettingsPages, QMainWindow):
 
     def show_document(self):
         doc = self.selected_document()
+        for control in self.library_actions:
+            control.setEnabled(bool(doc))
         if not doc:
             self.document_preview.clear()
             return
@@ -309,7 +315,13 @@ class MainWindow(StudyPages, TutorSettingsPages, QMainWindow):
         layout.addWidget(label('TOPICS NEEDING REVISION · BELOW 80% IN UP TO 100 RECENT ATTEMPTS', 'eyebrow', True))
         self.weak_table = table(['Topic', 'Average', 'Questions answered'])
         layout.addWidget(self.weak_table, 1)
-        layout.addWidget(button('Review due cards', lambda: self.navigate(3), True))
+        layout.addWidget(button('Review due cards', self.open_due_cards, True))
+
+    def open_due_cards(self):
+        self.navigate(3)
+        self.deck_filter.setCurrentIndex(0)
+        self.due_only.setChecked(True)
+        self.refresh_cards(False)
 
     def refresh_progress(self):
         data = dashboard(self.db)

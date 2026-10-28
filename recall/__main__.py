@@ -14,11 +14,17 @@ def main():
     window.show()
     if '--smoke-test' in sys.argv:
         def check():
-            for index in range(7):
-                window.navigate(index)
             marker = window.db.home / 'smoke-result.json'
-            marker.write_text(json.dumps({'launched': window.isVisible(), 'pages': window.stack.count()}), encoding='utf-8')
-            app.quit()
+            try:
+                from .smoke import offline_workflow
+                for index in range(7):
+                    window.navigate(index)
+                passed = offline_workflow()
+                marker.write_text(json.dumps({'launched': window.isVisible(), 'pages': window.stack.count(), 'offline_workflow': passed}), encoding='utf-8')
+                app.quit()
+            except Exception as exc:
+                marker.write_text(json.dumps({'error': str(exc)}), encoding='utf-8')
+                app.exit(1)
         QTimer.singleShot(500, check)
     sys.exit(app.exec())
 

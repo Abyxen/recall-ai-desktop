@@ -16,3 +16,17 @@ Known limits: generated content still requires human accuracy checks; calculatio
 
 
 Publication note: milestone 2 commit 7f09b6e was initially rejected because GitHub OAuth credentials lack workflow scope. Moved the CI definition to docs/ci/windows-tests.yml as an opt-in template, preserving all application code and history.
+
+The corrective commit `f1c7288` and the full milestone 2 source were subsequently pushed successfully and verified against the remote main branch.
+
+## Milestone 3 — regression, reproducibility and portable Windows build
+
+Final verification: **47 pytest tests passed** (about 6 seconds); `pip check` reported no broken requirements. Added real local HTTP protocol tests, malformed response errors, redirect protection, source-position and failed re-index regression, background GUI import/model failure, timed submission, and an isolated offline packaging smoke test. Cards now save deck edits atomically; selection-dependent controls disable correctly; generated Markdown cannot load resources. New installs require an explicitly selected chat model rather than assuming the developer's custom model exists.
+
+Actual lexical and `qwen3-embedding:0.6b` semantic live workflows both passed using existing `axom:latest`: import, retrieval, source-cited tutor response, two quote-validated cards, review, two validated quiz questions, 2/2 scoring and database reload. The embedding model was downloaded only after explicit user consent. The local application data directory was configured for these installed models, with no synthetic study documents added to it.
+
+Windows `setup.ps1` completed after fixes for third-party Python runtime discovery and PowerShell 5.1 quoting. Source `run.bat --smoke-test` passed. PyInstaller produced a portable windowed folder including dependency license metadata and documentation. Initial frozen startup failed on an incompatible ICU library from a helper-tool PATH; a clean build with a restricted build-time PATH fixed it. **Final executable exited 0** and recorded `launched=true`, `pages=7`, `offline_workflow=true`, covering rendering plus TXT retrieval/card/review/quiz/reload and DOCX/PPTX/PDF parsing. A startup error log now makes future failures inspectable.
+
+Documentation completed: setup, usage, model/OCR configuration, architecture/schema, privacy, test results, troubleshooting, screenshots and honest follow-up roadmap. Screenshots were visually reviewed and use isolated synthetic demo data. Repository review found no private documents, databases, credentials or model weights in tracked files. Source and final portable distribution are separate; local data remains outside the repository. Final publication/hash verification is performed with this milestone commit.
+
+Remaining limits: optional OCR and a second real OpenAI-compatible server were not exercised; fresh second-machine setup, code signing and large-library performance remain unverified. Free-text grades are provisional phrase-rubric coverage, generated mathematics is not independently verified, and source quote matching does not guarantee factual entailment. CI remains an inactive template due to OAuth workflow permission. See ROADMAP.md.

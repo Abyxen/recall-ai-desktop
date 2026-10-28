@@ -16,7 +16,7 @@ class Provider:
         self.db = db
         self.endpoint = db.setting("endpoint", "http://localhost:11434").rstrip('/')
         self.kind = db.setting("provider", "ollama")
-        self.model = db.setting("model", "axom:latest")
+        self.model = db.setting("model", "")
         parsed = urlparse(self.endpoint)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
             raise ModelError("Use a valid HTTP(S) endpoint without embedded credentials.")
@@ -37,13 +37,22 @@ class Provider:
                 return None
         try:
             with urllib.request.build_opener(NoRedirect).open(req, timeout=timeout or self.db.setting("timeout", 120)) as response:
-                return json.loads(response.read(8 * 1024 * 1024))
+                result = json.loads(response.read(8 * 1024 * 1024))
+                if not isinstance(result, dict):
+                    raise ValueError('Expected a JSON object from the model server.')
+                return result
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
             raise ModelError(f"Model server unavailable or returned invalid data ({exc}). Start Ollama or check Settings → Test connection.") from exc
 
     def models(self):
         result = self.request('/api/tags' if self.kind == 'ollama' else '/models', timeout=8)
-        return [m['name'] for m in result.get('models', [])] if self.kind == 'ollama' else [m['id'] for m in result.get('data', [])]
+        try:
+            names = [m['name'] for m in result['models']] if self.kind == 'ollama' else [m['id'] for m in result['data']]
+            if any(not isinstance(name, str) for name in names):
+                raise ValueError()
+            return names
+        except (KeyError, TypeError, ValueError):
+            raise ModelError('The model list response has an unexpected format. Check provider and base URL.')
 
     def chat(self, messages, structured=False):
         if not self.model.strip():
@@ -55,19 +64,26 @@ class Provider:
             if structured:
                 payload['format'] = 'json'
             result = self.request('/api/chat', payload)
-            content = result.get('message', {}).get('content', '')
+            message = result.get('message')
         else:
             payload = dict(model=self.model, messages=messages, temperature=temperature, max_tokens=3072, stream=False)
             if structured:
                 payload['response_format'] = {'type': 'json_object'}
             result = self.request('/chat/completions', payload)
-            content = (result.get('choices') or [{}])[0].get('message', {}).get('content', '')
+            choices = result.get('choices')
+            message = choices[0].get('message') if isinstance(choices, list) and choices and isinstance(choices[0], dict) else None
+        if not isinstance(message, dict):
+            raise ModelError('Unexpected chat response format. Check that the provider and base URL match your server.')
+        content = message.get('content', '')
         if not isinstance(content, str) or not content.strip():
             raise ModelError("The model returned an empty answer. Try a different model or a shorter request.")
         return content.strip()
 
     def embed(self, texts):
         model = self.db.setting('embedding_model', '').strip()
-        if self.kind == 'ollama':
-            return self.request('/api/embed', {'model': model, 'input': texts})['embeddings']
-        return [d['embedding'] for d in sorted(self.request('/embeddings', {'model': model, 'input': texts})['data'], key=lambda d: d['index'])]
+        try:
+            if self.kind == 'ollama':
+                return self.request('/api/embed', {'model': model, 'input': texts})['embeddings']
+            return [d['embedding'] for d in sorted(self.request('/embeddings', {'model': model, 'input': texts})['data'], key=lambda d: d['index'])]
+        except (KeyError, TypeError):
+            raise ModelError('Unexpected embeddings response. Choose an installed embedding-capable model.')

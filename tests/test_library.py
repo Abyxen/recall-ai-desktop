@@ -1,3 +1,4 @@
+from pathlib import Path
 import pytest
 from recall.db import Database
 from recall.documents import Page, chunk_pages, extract
@@ -35,6 +36,19 @@ def test_pages_and_validation(tmp_path):
     path.write_text('broken')
     with pytest.raises(ValueError, match='Cannot read'):
         extract(path)
+
+
+def test_page_mapping_and_failed_reindex(tmp_path):
+    source = tmp_path / 'lesson.txt'
+    source.write_text('Mitochondria release cellular energy.\fChlorophyll absorbs sunlight in chloroplasts.', encoding='utf-8')
+    db = Database(tmp_path / 'data')
+    doc_id = Library(db).import_file(source)
+    assert Retriever(db).search('Chlorophyll sunlight')[0]['page'] == 2
+    managed = Path(db.rows('SELECT path FROM documents')[0]['path'])
+    managed.write_text('')
+    with pytest.raises(ValueError):
+        Library(db).reindex(doc_id)
+    assert Retriever(db).search('Chlorophyll sunlight')[0]['page'] == 2
     path = tmp_path / 'empty.txt'
     path.touch()
     with pytest.raises(ValueError, match='empty'):

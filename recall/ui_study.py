@@ -33,7 +33,10 @@ class StudyPages:
         content.addStretch()
         content.addWidget(self.card_question)
         content.addWidget(self.card_answer, 1)
-        content.addWidget(row(button('Flip card', self.flip_card, True), button('Edit', self.edit_current_card), button('Delete', self.delete_card)))
+        self.card_actions = [button('Flip card', self.flip_card, True), button('Edit', self.edit_current_card), button('Delete', self.delete_card)]
+        content.addWidget(row(*self.card_actions))
+        for control in self.card_actions:
+            control.setEnabled(False)
         self.rating_buttons = []
         ratings = row()
         for title, rating in [('Again', 1), ('Hard', 3), ('Good', 4), ('Easy', 5)]:
@@ -69,6 +72,8 @@ class StudyPages:
 
     def populate_cards(self, rows):
         self.cards_list.clear()
+        for control in self.card_actions:
+            control.setEnabled(bool(rows))
         for item in rows:
             widget = QListWidgetItem(item['question'] + '\n' + item['deck'] + ' · Due ' + item['due'])
             widget.setData(Qt.ItemDataRole.UserRole, item)
@@ -87,6 +92,8 @@ class StudyPages:
         self.current_card = current.data(Qt.ItemDataRole.UserRole) if current else None
         self.card_answer_visible = False
         self.card_answer.clear()
+        for control in self.card_actions:
+            control.setEnabled(bool(self.current_card))
         if self.current_card:
             card = self.current_card
             self.card_question.setText(card['question'])
@@ -133,11 +140,10 @@ class StudyPages:
         form.addRow(controls)
         if dialog.exec():
             try:
+                if not deck.text().strip():
+                    raise ValueError('Enter a deck name.')
                 if card:
-                    edit_card(self.db, card['id'], question.toPlainText(), answer.toPlainText())
-                    if not deck.text().strip():
-                        raise ValueError('Enter a deck name.')
-                    self.db.execute('UPDATE cards SET deck=? WHERE id=?', (deck.text().strip()[:100], card['id']))
+                    edit_card(self.db, card['id'], question.toPlainText(), answer.toPlainText(), deck.text())
                 else:
                     if not 8 <= len(question.toPlainText().strip()) <= 2000 or not 2 <= len(answer.toPlainText().strip()) <= 4000:
                         raise ValueError('Use a question of 8–2,000 characters and an answer of 2–4,000 characters.')
@@ -183,9 +189,12 @@ class StudyPages:
         self.quiz_minutes.setRange(0, 180)
         self.quiz_minutes.setSuffix(' min (0 = untimed)')
         self.quiz_clock = label('Untimed', 'subtitle')
-        layout.addWidget(row(button('Generate quiz', lambda: self.generate('quiz'), True), button('Start / retake selected', self.start_selected_quiz), self.quiz_minutes, self.quiz_clock))
+        self.quiz_start = button('Start / retake selected', self.start_selected_quiz)
+        self.quiz_start.setEnabled(False)
+        layout.addWidget(row(button('Generate quiz', lambda: self.generate('quiz'), True), self.quiz_start, self.quiz_minutes, self.quiz_clock))
         split = QSplitter(Qt.Orientation.Horizontal)
         self.quiz_list = QListWidget()
+        self.quiz_list.currentItemChanged.connect(lambda current, previous: self.quiz_start.setEnabled(current is not None))
         split.addWidget(self.quiz_list)
         self.quiz_scroll = QScrollArea()
         self.quiz_scroll.setWidgetResizable(True)
